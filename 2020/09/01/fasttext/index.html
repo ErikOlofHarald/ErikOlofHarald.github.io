@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>fastText: Words, subwords &amp; n-grams - Hunches &amp; Crunches</title>
+    <meta property="og:title" content="fastText: Words, subwords &amp; n-grams - Hunches &amp; Crunches">
+    
+    
+    
+      
+      <meta property="description" content="FastText classification walkthrough focusing on predictions with subwords and n-grams">
+      
+    
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link href='//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css' rel='stylesheet' type='text/css'/>
+
+    
+    <link rel="stylesheet" href="/css/bulma.min.css" /link>
+    <link rel="stylesheet" href="/css/blog.css" />
+    
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script type="text/javascript">
+        $(window).scroll(function() {
+            
+            var height = $(document).height() - $(window).height(); 
+            var scroll = $(window).scrollTop();
+            
+            
+            var readPercent = (scroll / height) * 100;
+            
+            
+            if (readPercent > 0) {
+              $(".progress-bar").css("left", readPercent + "%");
+            }
+        });
+    </script>
+</head>
+<body>
+    
+    <nav class="navbar is-fixed-top" role="navigation" aria-label="main navigation">
+        
+        
+            <div class="progress-wrap progress">
+                <div class="progress-bar progress"></div>
+            </div>
+        
+        <div class="navbar-brand">
+            <a class="navbar-item" href="/">Home</a>
+            <a class="navbar-item" href="/about">About</a>
+        </div>
+    </nav>
+    
+
+    
+    <section class="hero is-info is-medium">
+        <div class="hero-body" style="background-image:linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(/header_img/FastText.png);">
+		
+            <div class="container has-text-centered">
+                <br>
+                <h1 class="title is-size-1">
+                    
+                        fastText: Words, subwords &amp; n-grams
+                    
+                </h1>
+                
+            </div>
+        </div>
+    </section>
+
+<div class="container">
+    <div class="section">
+    
+
+<div class="columns">
+    <div class="column is-9">
+        <div class="tile is-child box">
+            <div class="content">
+                
+
+<p>FastText is an algorithm developed by Facebook that can be used for both word representation and text classification. This post goes through some of the inner workings of the text classifier, in particular how predictions are obtained for a trained model with both n-grams and subword features. The purpose is not to find an optimal model but to bring some clarity to how the algorithm works behind the scenes.</p>
+
+<pre><code class="language-python">import fasttext
+import re
+import numpy as np
+from collections import Counter
+</code></pre>
+
+<p>I'm using the same dataset as in the getting started tutorial under Docs -> Text classification on fasttext.cc</p>
+
+<pre><code class="language-python">with open(&quot;cooking.stackexchange.txt&quot;, &quot;r&quot;) as f:
+    raw = f.readlines()
+</code></pre>
+
+<p>Space is created around special characters and all text is set to lowercase. So "How to clean a cast iron skillet?" becomes "how to clean a cast iron skillet ?". This is more or less the same cleaning as the one in the Docs example.</p>
+
+<pre><code class="language-python">def process(s):
+    s = re.sub(r'([/?!.,;:\-\(\)&quot;])', &quot; \g&lt;0&gt; &quot;, s)
+    s = s.lower()
+
+    return s
+</code></pre>
+
+<pre><code class="language-python">processed = [process(line) for line in raw]
+</code></pre>
+
+<p>Here I'm feeding the entire dataset to the algorithm. If you want to build a model that generalises well to new data you should of course consider partitioning it differently.</p>
+
+<pre><code class="language-python">with open('processed.txt', 'w') as f:
+    f.writelines(processed)
+</code></pre>
+
+<p>Three different models are trained; model_basic, model_subws and model_ngram. The only difference between them are the parameters <code>minn</code>, <code>maxn</code> and <code>wordNgrams</code>.</p>
+
+<p>The ngram model includes bi-grams. In a sentence like "How to clean a cast iron skillet?" we make use of pairs such as (iron, skillet) or (cast, iron). These features can be useful as they might convey more information as a pair than as individual words. They also take order into account, i.e. "iron cast" is not the same as "cast iron".</p>
+
+<p>The subws model breaks down words into substrings with minimun length <code>minn</code> and maximum length <code>maxn</code>. With <code>minn = 2</code> and <code>maxn = 3</code> the following subwords are derived from the word skillet: sk, ski, ki, kil, il, ill, ll, lle, le, let and et. These can be used to form new words such as ski, skill and kill. By combining subwords present in training data this way, fastText can create representations of previously unseen words.</p>
+
+<pre><code class="language-python">model_basic = fasttext.train_supervised(
+    input=&quot;processed.txt&quot;, minn=0, maxn=0, wordNgrams=1)
+
+model_subws = fasttext.train_supervised(
+    input=&quot;processed.txt&quot;, minn=3, maxn=5, wordNgrams=1)
+
+model_ngram = fasttext.train_supervised(
+    input=&quot;processed.txt&quot;, minn=0, maxn=0, wordNgrams=2)
+</code></pre>
+
+<h1 id="model-architecture">Model architecture</h1>
+
+<p>The model architecture is illustrated in the picture below. All input words, <span class="math inline">\(W_i\)</span>, are embedded by the input matrix <span class="math inline">\(A\)</span> and then averaged together in a vector. That vector is multiplied with output matrix <span class="math inline">\(B\)</span> and finally softmax is used to assign a probability to each class. The dimension of matrix <span class="math inline">\(A\)</span> depends on the vocabulary size and the <code>dim</code> parameter. The dimension of matrix <span class="math inline">\(B\)</span> also depends on <code>dim</code> as well as the the number of distinct classes.</p>
+
+<p><img src="/img/fasttext-architecture.png" width="682" height="376" align="center"/></p>
+
+<p>The negative log-likelihood is outlined in the paper $$-\frac{1}{N}\sum_{n=1}^Ny_nlog(f(BAx_n))$$ Here <span class="math inline">\(x_n\)</span> is a normalized bag of features, i.e. a vector of zeros with word counts in indices for words that are present in the input layer, divided by the total count. So multiplying <span class="math inline">\(A\)</span> with <span class="math inline">\(x_n\)</span> gives us the average vector in the picture.</p>
+
+<h1 id="dimensions-of-a">Dimensions of A</h1>
+
+<p>The input matrix <span class="math inline">\(A\)</span> contains vector representations for all words, subwords and n-grams. FastText preallocates space for subwords and n-grams, the size is given by the <code>bucket</code> parameter which defaults to 2e6. The number of rows in <span class="math inline">\(A\)</span> therefore equals the number of distinct words in the training data plus the bucket size. The model object exposes the input matrix as well as other attributes.</p>
+
+<pre><code class="language-python">def print_dim(model):
+    A = model.get_input_matrix()
+    d = str(A.shape)
+    n = len(model.words) + model.bucket
+    print(&quot;input matrix: %14s, words+bucket: %7i, dim: %i&quot; % (d, n, model.dim))
+</code></pre>
+
+<p>In the basic model the number of rows is equal to the vocabulary size as bucket can be set to zero when there are no subwords or n-grams. For the other models the default bucket size as added to the number of rows. The number of columns is equal to the default value of the <code>dim</code> parameter.</p>
+
+<pre><code class="language-python">print_dim(model_basic)
+print_dim(model_subws)
+print_dim(model_ngram)
+</code></pre>
+
+<pre><code>input matrix:    (8926, 100), words+bucket:    8926, dim: 100
+input matrix: (2008926, 100), words+bucket: 2008926, dim: 100
+input matrix: (2008926, 100), words+bucket: 2008926, dim: 100
+</code></pre>
+
+<h1 id="bag-of-features">Bag of features</h1>
+
+<p>Once a model has been trained all that's needed to calculate a prediction is a bag of features representation of the input data. The function below outlines how this vector can be constructed given the yet to be implemented functions <code>get_word_idx()</code>, <code>get_subword_idx()</code> and <code>get_ngram_idx()</code>.</p>
+
+<pre><code class="language-python">def bag_of_features(s, vocab, minn, maxn, wordNgrams, bucket=int(2e6)):
+    tokens = s.split()
+    # fastTetxt adds the end of sentence token &lt;/s&gt;
+    tokens.append('&lt;/s&gt;')
+    idx = Counter()
+    nwords = len(vocab)
+
+    for token in tokens:
+        # To be implemented
+        token_id = get_word_idx(token, vocab)
+        if token_id &gt;= 0:
+            idx.update([token_id])
+
+        if maxn &gt; 0 and token != '&lt;/s&gt;':
+            # To be implmented
+            idx.update(get_subword_idx(token, nwords, bucket, minn, maxn))
+
+    if wordNgrams &gt; 1:
+        # To be implemented
+        idx.update(get_ngram_idx(tokens, nwords, wordNgrams, bucket))
+
+    x = np.zeros((nwords + bucket), dtype=np.float32)
+    keys = np.fromiter(idx.keys(), dtype=np.int64)
+    values = np.fromiter(idx.values(), dtype=np.float32)
+    x[keys] = values / values.sum()
+
+    return x
+</code></pre>
+
+<h2 id="hashing">Hashing</h2>
+
+<p>Indices are obtained through hashing. The function <code>get_hash()</code> below is a python implementation of the c++ hashing function in fastText.</p>
+
+<pre><code class="language-python">def get_hash(token):
+    old_settings = np.seterr(all=&quot;ignore&quot;)
+    h = np.uint32(2166136261)
+    for char in token:
+        char_bytes = char.encode(&quot;utf-8&quot;)
+        for b in char_bytes:
+            h = h ^ np.uint32(np.int8(b))
+            h = h * np.uint32(16777619)
+    np.seterr(**old_settings)
+
+    return h
+</code></pre>
+
+<h2 id="words">Words</h2>
+
+<p>FastText starts out by preallocating a vector of size 30e6. For each word an index is returned from the hashing function which determines the position in the vector. If a position is already taken the index is incremented until a free slot is found. If the corpus is large, i.e. there are many distinct words in the training data, the preallocated vector will start filling up and finding free positions will be slow. To mitigate this fastText starts pruning once the vocabulary grows bigger than 75% of the preallocated size.</p>
+
+<p>Once the vocabulary is built words are stored in a word vector where they are ordered by descending frequency and indices are updated. FastText adds the end of sentence token &lt/s&gt at the end of each input line. It is therefore a likely candidate to show in first position.</p>
+
+<pre><code class="language-python">words = Counter()
+for row in processed:
+    s = re.sub('__[a-z]+__[a-z]+\s', '', row)
+    tokens = s.split() + ['&lt;/s&gt;']
+    for w in tokens:
+        words.update([w])
+words = [tup[0] for tup in words.most_common()]
+</code></pre>
+
+<pre><code class="language-python">print('Most common: ' + ' '.join(words[:5]))
+</code></pre>
+
+<pre><code>Most common: &lt;/s&gt; ? - to a
+</code></pre>
+
+<p>The number of distinct words in this dataset is much smaller than the maximum vocabulary size, so no words will be pruned from the vocabulary. This means that the row index of a word in <span class="math inline">\(A\)</span> is identical to the index in the sorted words vector.</p>
+
+<pre><code class="language-python">def get_word_idx(token, words):
+    try:
+        return words.index(token)
+    except ValueError:
+        return -1
+</code></pre>
+
+<h3 id="subwords">Subwords</h3>
+
+<p>The function <code>get_subwords()</code> returns all subwords for a given word and parameters <code>minn</code> and <code>maxn</code>.</p>
+
+<pre><code class="language-python">def get_subwords(word, minn, maxn):
+    word_length = len(word)
+    subwords = []
+
+    for i in range(word_length):
+        j = i
+        n = 1
+        s = &quot;&quot;
+
+        while j &lt; word_length and n &lt;= maxn:
+            s += word[j]
+            j += 1
+            if n &gt;= minn and not (n == 1 and (i == 0 or j == word_length)):
+                subwords.append(s)
+            n += 1
+
+    return subwords
+</code></pre>
+
+<p>This is the result for the word cake surrounded by begining and end of word tokens &lt&gt and <code>minn=2</code> and <code>maxn=3</code></p>
+
+<pre><code class="language-python">get_subwords(&quot;&lt;cake&gt;&quot;, 2, 3)
+</code></pre>
+
+<pre><code>['&lt;c', '&lt;ca', 'ca', 'cak', 'ak', 'ake', 'ke', 'ke&gt;', 'e&gt;']
+</code></pre>
+
+<p>Unlike when building the vocabulary of words, collisions are allowed in the bucket range and more probable if the bucket size is small. The modulo operator makes sure no index exceeds the vector dimensions.</p>
+
+<pre><code class="language-python">def get_subword_idx(token, nwords, bucket, minn, maxn):
+    word = &quot;&lt;&quot; + token + &quot;&gt;&quot;
+    subwords = get_subwords(word, minn, maxn)
+    idx = []
+
+    for subword in subwords:
+        idx.append(nwords + get_hash(subword) % bucket)
+
+    return idx
+</code></pre>
+
+<h3 id="n-grams">n-grams</h3>
+
+<p>N-grams are also in the bucket range and thus free to collide with subwords. All inputs are first hashed individually. The function then proceeds to loop over all n-grams, in this case bi-grams, adding an additional hash value for each one of them to the list of output indices.</p>
+
+<pre><code class="language-python">def get_ngram_idx(tokens, nwords, wordNgrams, bucket):
+    hashes = []
+
+    for token in tokens:
+        hashes.append(get_hash(token))
+
+    idx = []
+    hashes_length = len(tokens)
+
+    old_settings = np.seterr(all=&quot;ignore&quot;)
+
+    for i in range(hashes_length):
+        h = np.uint64(np.int32(hashes[i]))
+        j = i + 1
+
+        # Loop through all n-grams starting from position i.
+        while j &lt; hashes_length and j &lt; i + wordNgrams:
+            h = np.uint64(h * np.uint64(116049371))
+            h = h + np.uint64(np.int32(hashes[j]))
+            h = h % np.uint64(bucket) + np.uint64(nwords)
+
+            idx.append(h)
+            j += 1
+
+    np.seterr(**old_settings)
+
+    return idx
+</code></pre>
+
+<h1 id="predictions">Predictions</h1>
+
+<p>The predict function makes use of trained matrices <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span>. Predictions are obtained by taking softmax of the output layer.</p>
+
+<pre><code class="language-python">def predict(bof, model):
+    A = model.get_input_matrix()
+    B = model.get_output_matrix()
+    avg = np.matmul(np.transpose(A), x)
+    output = np.matmul(B, avg)
+    pred = softmax(output)
+    # Rank predictions from high to low
+    rnk = pred.argsort()[::-1]
+
+    return pred[rnk]
+</code></pre>
+
+<p>This is how softmax is implemented in the source code. Note that a small constant value of 1e-5 is added to all predictions.</p>
+
+<pre><code class="language-python">def softmax(v):
+    exp_v = np.exp(v - v.max())
+    exp_v_n = exp_v / exp_v.sum()
+    y = np.exp(np.log(exp_v_n + 1e-5))
+
+    return y
+</code></pre>
+
+<p>Using the input sentence "What's the purpose of bread?", a normalised bag of features vector is created for each model. They are multiplied by each models specific weight matrices in the predict function before predictions are returned.</p>
+
+<pre><code class="language-python">s = &quot;What's the purpose of bread?&quot;
+
+x = bag_of_features(s, vocab=words, minn=0, maxn=0,
+                    wordNgrams=0, bucket=0)
+preds_basic = predict(x, model_basic)
+
+x = bag_of_features(s, vocab=words, minn=3, maxn=5,
+                    wordNgrams=0, bucket=int(2e6))
+preds_subws = predict(x, model_subws)
+
+x = bag_of_features(s, vocab=words, minn=0, maxn=0,
+                    wordNgrams=2, bucket=int(2e6))
+preds_ngram = predict(x, model_ngram)
+</code></pre>
+
+<p>These are the top eight highest probabilites (there are a total of 669 distinct labels)</p>
+
+<pre><code class="language-python">print(preds_basic[:8])
+print(preds_subws[:8])
+print(preds_ngram[:8])
+</code></pre>
+
+<pre><code>[0.176917 0.097765 0.051303 0.027405 0.027188 0.026402 0.025514 0.024879]
+[0.046017 0.039449 0.024450 0.023647 0.022368 0.021683 0.018563 0.013396]
+[0.146974 0.069968 0.069439 0.060680 0.023812 0.021596 0.019438 0.017390]
+</code></pre>
+
+<p>There is, of course, already a predict function on the model object. Let's use it to compare results!</p>
+
+<pre><code class="language-python">print(model_basic.predict(s, k=-1)[1][:8])
+print(model_subws.predict(s, k=-1)[1][:8])
+print(model_ngram.predict(s, k=-1)[1][:8])
+</code></pre>
+
+<pre><code>[0.176916 0.097765 0.051303 0.027405 0.027188 0.026402 0.025514 0.024879]
+[0.046017 0.039449 0.024450 0.023647 0.022368 0.021683 0.018563 0.013396]
+[0.146974 0.069968 0.069439 0.060680 0.023812 0.021596 0.019438 0.017390]
+</code></pre>
+
+<p>They are identical so the bag of features vector implementation above seems correct.</p>
+
+<h1 id="one-last-no-not-ot-ote-te">One last no not ot ote te</h1>
+
+<p>Imagine the model encounters a previously unseen word, i.e. a word that is not in the training data. Neither the basic nor the n-gram model would produce a meaningfull representation as it doesn't map to any row in <span class="math inline">\(A\)</span>.</p>
+
+<pre><code class="language-python">print(get_word_idx(&quot;castiron&quot;, words))
+</code></pre>
+
+<pre><code>-1
+</code></pre>
+
+<p>But in the subwords model "castiron" is broken down to a range of different subwords, as explained above, among others 'cast' and 'iron'.</p>
+
+<pre><code class="language-python">print(get_subwords(&quot;castiron&quot;, minn=3, maxn=5))
+</code></pre>
+
+<pre><code>['cas', 'cast', 'casti', 'ast', 'asti', 'astir', 'sti', 'stir', 'stiro', 'tir', 'tiro', 'tiron', 'iro', 'iron', 'ron']
+</code></pre>
+
+<p>These will all be hashed and receive an index in the bucket range and therby get a numerical representation. This might, or might not, produce a better model.</p>
+
+<h1 id="summary">Summary</h1>
+
+<p>The fastText model object exposes functions similar to the once implemented in this post. The average vector is e.g. returned by <code>get_sentence_vector()</code>. Hopefully, this walkthrough brings some clarity to some of the details of the implementation and how the algorithm works.</p>
+<p>There are arguments additional to the once mentioned in this post that will have an effect on training and prediction. The sampling threshold <code>t</code>can be modified, a different loss function <code>loss</code> can be specified etc.</p>
+<p>FastText can be trained with <code>pretrainedVectors</code>, i.e. an input matrix with pretrained weights. The vocabluary can still grow, given that the maximum size is not reached, but the dimension argument <code>dim</code> has to be identical to the dimension of the provided input matrix. In the bucket range everything works as before. This might be especially helpfull if your dataset is small and what's more fasttext.cc provides several pretrained models for a range of different languages.</p>
+<p>With the use of the autotune module fastText is an easy and quick way to get good results. I recommend visiting fasttext.cc, reading <a href="https://arxiv.org/pdf/1607.01759.pdf">the text classification paper</a> and trying it out!</p>
+
+            </div>
+        </div>
+    </div>
+    <div class="column is-3">
+        <div class="card">
+    <div class="card-content">
+        <h1 class="title is-5">Tags</h1>
+        <div class="tags">
+        
+            <span class="tag"><a href="/tags/d3.js">d3.js</a></span>
+        
+            <span class="tag"><a href="/tags/fasttext">fasttext</a></span>
+        
+            <span class="tag"><a href="/tags/interpretability">interpretability</a></span>
+        
+            <span class="tag"><a href="/tags/python">python</a></span>
+        
+            <span class="tag"><a href="/tags/r">r</a></span>
+        
+            <span class="tag"><a href="/tags/xgboost">xgboost</a></span>
+        
+        </div>          
+    </div>
+</div><br>
+        <div class="card">
+    <div class="card-content">
+        <h1 class="title is-5">Recent posts</h1>
+        
+            <h1><a href="/2020/09/01/fasttext/">fastText: Words, subwords &amp; n-grams</a></h1>
+            <time class="has-text-grey-light is-size-7">1 September 2020</time>
+        
+            <h1><a href="/2019/10/21/custom-data-viz-with-d3/">Custom data visualisation with d3.js</a></h1>
+            <time class="has-text-grey-light is-size-7">21 October 2019</time>
+        
+            <h1><a href="/2019/03/10/xgboost-prediction-contributions-and-shap-values/">XGBoost: prediction contributions</a></h1>
+            <time class="has-text-grey-light is-size-7">10 March 2019</time>
+        
+            <h1><a href="/2019/03/07/xgboost-calculating-quality-cover/">XGBoost: Quality &amp; Cover</a></h1>
+            <time class="has-text-grey-light is-size-7">7 March 2019</time>
+        
+    </div>
+</div>
+    <br>
+                
+
+
+    
+<br>
+        <div class="card">
+    <div class="card-content">
+        <h1 class="title is-5">Archives</h1>
+        
+            <a href="/archives/2020">2020</a> (1)<br>
+        
+            <a href="/archives/2019">2019</a> (3)<br>
+        
+    </div>
+</div>
+
+    </div>
+</div>
+
+
+    </div>
+</div>
+
+<footer class="footer has-background-grey-darker has-text-white">
+    <div class="content has-text-centered">
+        <p>
+            
+            Copyright &copy; Hunches &amp; Crunches 2021
+        </p>
+    </div>
+</footer>
+<script defer src="https://use.fontawesome.com/releases/v5.1.0/js/all.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+<script src="/js/math-code.js"></script>
+<script async src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+</body>
+</html>

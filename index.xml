@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Hunches &amp; Crunches</title>
+    <link>/</link>
+    <description>Recent content on Hunches &amp; Crunches</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <copyright>Copyright © 2008–2018, Erik Andreasson</copyright>
+    <lastBuildDate>Tue, 01 Sep 2020 00:00:00 +0000</lastBuildDate>
+    
+        <atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>fastText: Words, subwords &amp; n-grams</title>
+      <link>/2020/09/01/fasttext/</link>
+      <pubDate>Tue, 01 Sep 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/09/01/fasttext/</guid>
+      <description>FastText is an algorithm developed by Facebook that can be used for both word representation and text classification. This post goes through some of the inner workings of the text classifier, in particular how predictions are obtained for a trained model with both n-grams and subword features. The purpose is not to find an optimal model but to bring some clarity to how the algorithm works behind the scenes.</description>
+    </item>
+    
+    <item>
+      <title>Custom data visualisation with d3.js</title>
+      <link>/2019/10/21/custom-data-viz-with-d3/</link>
+      <pubDate>Mon, 21 Oct 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/2019/10/21/custom-data-viz-with-d3/</guid>
+      <description>When it comes to creating fast and good looking visualisations there&#39;s no better package than ggplot (my personal opinion). Implementing the grammar of graphics it&#39;s concise and intuitive allowing you to produce advanced plots in only a few lines of code. This is extremely helpful when performing EDA where I tend to produce a large amount of visualisations in order to familiarise myself with the data. If you want something interactive though, you have to turn elsewhere.</description>
+    </item>
+    
+    <item>
+      <title>About</title>
+      <link>/about/</link>
+      <pubDate>Tue, 09 Apr 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/about/</guid>
+      <description>This website was built using blogdown and Hugo. The theme is by Jeffprod, but has been slightly, and haphazardly, modified to suit my own style and taste.
+Notebooks, code and data can be found in this github repository</description>
+    </item>
+    
+    <item>
+      <title>XGBoost: prediction contributions</title>
+      <link>/2019/03/10/xgboost-prediction-contributions-and-shap-values/</link>
+      <pubDate>Sun, 10 Mar 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/2019/03/10/xgboost-prediction-contributions-and-shap-values/</guid>
+      <description>In my most recent post I had a look at the XGBoost model object. I went through the calculations behind Quality and Cover with the purpose of gaining a better intuition for how the algorithm works, but also to set the stage for how prediction contributions are calculated. Since November 2018 this is implemented as a feature in the R interface. By setting predcontrib = TRUE the predict function returns a table containing each features contribution to the final prediction.</description>
+    </item>
+    
+    <item>
+      <title>XGBoost: Quality &amp; Cover</title>
+      <link>/2019/03/07/xgboost-calculating-quality-cover/</link>
+      <pubDate>Thu, 07 Mar 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/2019/03/07/xgboost-calculating-quality-cover/</guid>
+      <description>I was going to write a post about how prediction contributions in XGBoost are calculated. But I quickly came to realize that it would be logical to go through a few other things first, namely Quality and Cover. Although this is all well described in the documentation, a practical example is sometimes useful. It has been very helpful for me at least in gaining a better understanding of how the algorithm works.</description>
+    </item>
+    
+  </channel>
+</rss>

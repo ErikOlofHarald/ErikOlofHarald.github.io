@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>D3.js on Hunches &amp; Crunches</title>
+    <link>/tags/d3.js/</link>
+    <description>Recent content in D3.js on Hunches &amp; Crunches</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <copyright>Copyright © 2008–2018, Erik Andreasson</copyright>
+    <lastBuildDate>Mon, 21 Oct 2019 00:00:00 +0000</lastBuildDate>
+    
+        <atom:link href="/tags/d3.js/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Custom data visualisation with d3.js</title>
+      <link>/2019/10/21/custom-data-viz-with-d3/</link>
+      <pubDate>Mon, 21 Oct 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/2019/10/21/custom-data-viz-with-d3/</guid>
+      <description>When it comes to creating fast and good looking visualisations there&#39;s no better package than ggplot (my personal opinion). Implementing the grammar of graphics it&#39;s concise and intuitive allowing you to produce advanced plots in only a few lines of code. This is extremely helpful when performing EDA where I tend to produce a large amount of visualisations in order to familiarise myself with the data. If you want something interactive though, you have to turn elsewhere.</description>
+    </item>
+    
+  </channel>
+</rss>

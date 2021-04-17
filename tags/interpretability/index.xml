@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Interpretability on Hunches &amp; Crunches</title>
+    <link>/tags/interpretability/</link>
+    <description>Recent content in Interpretability on Hunches &amp; Crunches</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <copyright>Copyright © 2008–2018, Erik Andreasson</copyright>
+    <lastBuildDate>Sun, 10 Mar 2019 00:00:00 +0000</lastBuildDate>
+    
+        <atom:link href="/tags/interpretability/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>XGBoost: prediction contributions</title>
+      <link>/2019/03/10/xgboost-prediction-contributions-and-shap-values/</link>
+      <pubDate>Sun, 10 Mar 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/2019/03/10/xgboost-prediction-contributions-and-shap-values/</guid>
+      <description>In my most recent post I had a look at the XGBoost model object. I went through the calculations behind Quality and Cover with the purpose of gaining a better intuition for how the algorithm works, but also to set the stage for how prediction contributions are calculated. Since November 2018 this is implemented as a feature in the R interface. By setting predcontrib = TRUE the predict function returns a table containing each features contribution to the final prediction.</description>
+    </item>
+    
+    <item>
+      <title>XGBoost: Quality &amp; Cover</title>
+      <link>/2019/03/07/xgboost-calculating-quality-cover/</link>
+      <pubDate>Thu, 07 Mar 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/2019/03/07/xgboost-calculating-quality-cover/</guid>
+      <description>I was going to write a post about how prediction contributions in XGBoost are calculated. But I quickly came to realize that it would be logical to go through a few other things first, namely Quality and Cover. Although this is all well described in the documentation, a practical example is sometimes useful. It has been very helpful for me at least in gaining a better understanding of how the algorithm works.</description>
+    </item>
+    
+  </channel>
+</rss>
